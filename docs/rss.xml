@@ -1,5 +1,57 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>记录。</title><link>https://newSoloman.github.io/CS</link><description>静下来。</description><copyright>记录。</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61413445?v=4</url><title>avatar</title><link>https://newSoloman.github.io/CS</link></image><lastBuildDate>Thu, 02 Jul 2026 02:09:03 +0000</lastBuildDate><managingEditor>记录。</managingEditor><ttl>60</ttl><webMaster>记录。</webMaster><item><title>2026年7月2日-HackMyVm-bonjour靶机复盘</title><link>https://newSoloman.github.io/CS/post/2026-nian-7-yue-2-ri--HackMyVm-bonjour-ba-ji-fu-pan.html</link><description>```text
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>记录。</title><link>https://newSoloman.github.io/CS</link><description>静下来。</description><copyright>记录。</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61413445?v=4</url><title>avatar</title><link>https://newSoloman.github.io/CS</link></image><lastBuildDate>Thu, 02 Jul 2026 03:13:22 +0000</lastBuildDate><managingEditor>记录。</managingEditor><ttl>60</ttl><webMaster>记录。</webMaster><item><title>2026年7月2日-HackMyVm-Helix靶机复盘</title><link>https://newSoloman.github.io/CS/post/2026-nian-7-yue-2-ri--HackMyVm-Helix-ba-ji-fu-pan.html</link><description>#### 一、信息收集
+
+靶机信息
+ip：192.168.56.150
+
+
+```bash
+┌──(kali㉿kali)-[~/Desktop]
+└─$ nmap -p- -sV -sC 192.168.56.150
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-07-01 22:14 EDT
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.56.150
+Host is up (0.0017s latency).
+Not shown: 65534 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 10.0p2 Debian 7+deb13u2 (protocol 2.0)
+MAC Address: 08:00:27:D7:0E:4D (PCS Systemtechnik/Oracle VirtualBox virtual NIC)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 6.61 seconds
+```
+
+发现使用nmap扫描后只是开放了22端口，和bonjour靶机一样，尝试扫描UDP协议
+
+```bash
+┌──(kali㉿kali)-[~/Desktop]
+└─$ sudo nmap -sU --top-ports 100 -sV 192.168.56.150
+[sudo] password for kali: 
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-07-01 22:16 EDT
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.56.150
+Host is up (0.00084s latency).
+Not shown: 98 closed udp ports (port-unreach)
+PORT    STATE         SERVICE VERSION
+68/udp  open|filtered dhcpc
+161/udp open          snmp    SNMPv1 server; net-snmp SNMPv3 server (public)
+MAC Address: 08:00:27:D7:0E:4D (PCS Systemtechnik/Oracle VirtualBox virtual NIC)
+Service Info: Host: helix
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 206.73 seconds
+
+```
+
+看看使用相同的手法是否有结果
+
+```
+sudo systemctl start avahi-daemon
+sudo systemctl enable avahi-daemon
+开启Avahi进程，使用avahi-browse -r -a -t获取信息
+```
+
+哈哈，搞错了，我们的 `avahi-browse -r -a -t` 没有输出，核心原因很简单：目标主机（`192.168.56.150`）上没有运行 Avahi（mDNS/DNS-SD）服务，也没有在局域网内广播任何 ZeroConf/Bonjour 服务。</description><guid isPermaLink="true">https://newSoloman.github.io/CS/post/2026-nian-7-yue-2-ri--HackMyVm-Helix-ba-ji-fu-pan.html</guid><pubDate>Thu, 02 Jul 2026 03:12:55 +0000</pubDate></item><item><title>2026年7月2日-HackMyVm-bonjour靶机复盘</title><link>https://newSoloman.github.io/CS/post/2026-nian-7-yue-2-ri--HackMyVm-bonjour-ba-ji-fu-pan.html</link><description>```text
 └─$ nmap -sn 192.168.56.0/24          
 Starting Nmap 7.95 ( https://nmap.org ) at 2026-06-30 23:54 EDT
 mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
